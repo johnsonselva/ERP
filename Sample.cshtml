@@ -1,0 +1,84 @@
+@using System.Xml.Linq
+@using System.IO
+@using System.Data
+@{
+    var filePath = Server.MapPath("~/App_Data/Cert Data For Attendance.xlsx"); // Path to your Excel file
+    var db = Database.Open("officeserver"); // Your database connection
+
+    // Reading the Excel file using Open XML SDK
+    var fileInfo = new FileInfo(filePath);
+
+    // If the file exists
+    if (fileInfo.Exists)
+    {
+        // Open the spreadsheet document using the Open XML SDK
+        using (var spreadsheetDocument = DocumentFormat.OpenXml.Packaging.SpreadsheetDocument.Open(filePath, false))
+        {
+            // Get the workbook part
+            var workbookPart = spreadsheetDocument.WorkbookPart;
+            var sheet = workbookPart.Workbook.Sheets.Elements<DocumentFormat.OpenXml.Spreadsheet.Sheet>().FirstOrDefault();
+
+            if (sheet != null)
+            {
+                // Get the worksheet part
+                var worksheetPart = (DocumentFormat.OpenXml.Packaging.WorksheetPart)workbookPart.GetPartById(sheet.Id);
+                var sheetData = worksheetPart.Worksheet.Elements<DocumentFormat.OpenXml.Spreadsheet.SheetData>().FirstOrDefault();
+
+                // Parse rows in the sheet
+                foreach (var row in sheetData.Elements<DocumentFormat.OpenXml.Spreadsheet.Row>())
+                {
+                    var cells = row.Elements<DocumentFormat.OpenXml.Spreadsheet.Cell>().ToList();
+                    
+                    // Extract cell values based on their position
+                    var id = GetCellValue(cells, 0); // Column 1: ID
+                    var rollNumber = GetCellValue(cells, 1); // Column 2: RollNumber
+                    var batchId = GetCellValue(cells, 2); // Column 3: BatchId
+                    var studentName = GetCellValue(cells, 3); // Column 4: StudentName
+                    var courseId = GetCellValue(cells, 4); // Column 5: CourseId
+                    var employeeId = GetCellValue(cells, 5); // Column 6: EmployeeId
+                    var ay = GetCellValue(cells, 6); // Column 7: AY
+                    var sem = GetCellValue(cells, 7); // Column 8: Sem
+                    var section = GetCellValue(cells, 8); // Column 9: Section
+                    var hourType = GetCellValue(cells, 9); // Column 10: HourType
+                    var isFastTrackCompleted = GetCellValue(cells, 10); // Column 11: IsFastTrackCompleted
+                    var programType = GetCellValue(cells, 11); // Column 12: ProgramType
+                    var semState = GetCellValue(cells, 12); // Column 13: Sem_State
+                    var etype = GetCellValue(cells, 13); // Column 14: etype
+                    var eid = GetCellValue(cells, 14); // Column 15: eid
+                    var specOrdivercode = GetCellValue(cells, 15); // Column 16: specOrdivercode
+                    var status = GetCellValue(cells, 16); // Column 17: Status
+                    var eveningHourType = GetCellValue(cells, 17); // Column 18: EveningHourType
+                    var programId = GetCellValue(cells, 18); // Column 19: ProgramId
+                    var enteredOn = GetCellValue(cells, 19); // Column 20: EnteredOn
+
+                    // Insert the data into the database
+                    var query = @"
+                        INSERT INTO CourseEnrollment 
+                        (id, RollNumber, BatchId, StudentName, CourseId, EmployeeId, AY, Sem, Section, HourType, 
+                        IsFastTrackCompleted, ProgramType, Sem_State, etype, eid, specOrdivercode, Status, EveningHourType, 
+                        ProgramId, EnteredOn)
+                        VALUES
+                        (@id, @RollNumber, @BatchId, @StudentName, @CourseId, @EmployeeId, @AY, @Sem, @Section, @HourType, 
+                        @IsFastTrackCompleted, @ProgramType, @Sem_State, @etype, @eid, @specOrdivercode, @Status, @EveningHourType, 
+                        @ProgramId, @EnteredOn)";
+
+                    db.Execute(query, 
+                        id, rollNumber, batchId, studentName, courseId, employeeId, ay, sem, section, hourType, 
+                        isFastTrackCompleted, programType, semState, etype, eid, specOrdivercode, status, eveningHourType, 
+                        programId, enteredOn);
+                }
+            }
+        }
+    } }
+
+    string GetCellValue(List<DocumentFormat.OpenXml.Spreadsheet.Cell> cells, int index)
+    {
+        if (cells.Count > index)
+        {
+            var cell = cells[index];
+            var cellValue = cell.CellValue?.InnerXml;
+            return cellValue ?? string.Empty;
+        }
+        return string.Empty;
+    }
+}
